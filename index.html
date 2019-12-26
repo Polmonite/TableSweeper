@@ -1,0 +1,883 @@
+<!doctype HTML>
+<html>
+
+<head>
+    <title>TableSweeper</title>
+    <link rel="icon" href="https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/240/apple/237/triangular-flag-on-post_1f6a9.png">
+    <script src="http://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <style>
+        body {
+            font-family: monospace;
+            font-size: 16px;
+            background: #007f81;
+            text-align: center;
+            user-select: none;
+        }
+
+        h1 {
+            color: #ffffff;
+        }
+
+        #new-game {
+            position: absolute;
+            top: -28px;
+            left: -2px;
+        }
+
+        #game-menu th {
+            padding: 2px 5px;
+            border-top: 2px solid #f6f6f6;
+            border-left: 2px solid #f6f6f6;
+            border-right: 2px solid #7a7a7a;
+            border-bottom: 2px solid #7a7a7a;
+        }
+
+        #game-menu th.menu-voice,
+        #game-menu th label {
+            cursor: pointer;
+        }
+
+        #popup {
+            display: none;
+            font-size: 0.8em;
+            z-index: 10;
+            position: absolute;
+            top: 26px;
+            left: 0;
+            text-align: left;
+            border-top: 2px solid #f6f6f6;
+            border-left: 2px solid #f6f6f6;
+            border-right: 2px solid #7a7a7a;
+            border-bottom: 2px solid #7a7a7a;
+            padding: 2px;
+        }
+
+        #popup th,
+        #popup td {
+            border: none;
+            text-align: right;
+        }
+
+        #popup th:first-child,
+        #popup td:first-child {
+            text-align: left;
+        }
+
+        #popup input[type="number"] {
+            width: 32px;
+            text-align: right;
+        }
+        #popup input[type="number"]::-webkit-inner-spin-button,
+        #popup input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+        #popup tr td {
+            padding: 2px;
+            background: #eeeeee;
+        }
+
+        #popup tr:last-child th,
+        #popup tr:last-child td {
+            background: #dddddd;
+        }
+
+        #popup .header {
+            background: #0165ff;
+            color: #ffffff;
+        }
+
+        .open-popup-cancel {
+            cursor: pointer;
+            float: right;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+        }
+
+        #popup #col-names th {
+            background: #dddddd;
+        }
+
+        #open-popup {
+            display: none;
+        }
+
+        #open-popup:checked + #popup {
+            display: block;
+        }
+
+        #wrap {
+            position: relative;
+            margin: 25px auto;
+            padding: 15px;
+            width: auto;
+            background: #bdbdbd;
+            border-top: 2px solid #f6f6f6;
+            border-left: 2px solid #f6f6f6;
+            border-right: 2px solid #7a7a7a;
+            border-bottom: 2px solid #7a7a7a;
+            display: inline-block;
+        }
+
+        #wrap.loading {
+            display: none;
+        }
+
+        table {
+            margin: 0 auto 0;
+            background: #bdbdbd;
+            width: auto;
+            height: auto;
+            border-collapse: collapse;
+        }
+
+        table tr,
+        table th,
+        table td {
+            margin: 0;
+            padding: 0;
+        }
+
+        table #board td {
+            position: relative;
+            width: 16px;
+            height: 16px;
+        }
+
+        table #board td:before,
+        table #board td:after {
+            content: '';
+            background: transparent;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: inline-block;
+            box-sizing: border-box;
+            top: 0;
+            left: 0;
+        }
+
+        table #board {
+            border-top: 2px solid #7a7a7a;
+            border-left: 2px solid #7a7a7a;
+            border-right: 2px solid #f6f6f6;
+            border-bottom: 2px solid #f6f6f6;
+        }
+
+        table #board td:not(.shown):before {
+            border-top: 2px solid #f6f6f6;
+            border-left: 2px solid #f6f6f6;
+            border-right: 2px solid #7a7a7a;
+            border-bottom: 2px solid #7a7a7a;
+        }
+
+        table #board td.shown:before {
+            border-right: 1px solid #7a7a7a;
+            border-bottom: 1px solid #7a7a7a;
+        }
+
+        table #board td:after {
+            content: attr(value);
+            text-align: center;
+            line-height: 1em;
+        }
+
+        table #board td.shown[value="0"]:after {
+            content: '';
+        }
+
+        table #board td:not(.shown).status-1:after {
+            content: '🚩';
+            font-size: 0.7em;
+            top: 10%;
+            left: 15%;
+        }
+
+        table #board td:not(.shown).status-2:after {
+            content: '?';
+            color: #171717;
+        }
+
+        table #board td.status-3:after {
+            content: '💥';
+            top: 10%;
+            left: -5%;
+        }
+
+        table #board td.shown[value="-1"]:after {
+            content: '💣';
+            font-size: 0.8em;
+            top: 20%;
+            left: 10%;
+        }
+
+        table #board td.shown[value="1"]:after {
+            color: #fe0b04;
+        }
+
+        table #board td.shown[value="2"]:after {
+            color: #288221;
+        }
+
+        table #board td.shown[value="3"]:after {
+            color: #f82f28;
+        }
+
+        table #board td.shown[value="4"]:after {
+            color: #08047c;
+        }
+
+        table #board td.shown[value="5"]:after {
+            color: #7c0503;
+        }
+
+        table #board td.shown[value="6"]:after {
+            color: #2c8282;
+        }
+
+        table #board td.shown[value="7"]:after {
+            color: #171717;
+        }
+
+        table #board td.shown[value="8"]:after {
+            color: #828282;
+        }
+
+        table #hud-row {
+            padding: 5px;
+            border-top: 2px solid #7a7a7a;
+            border-left: 2px solid #7a7a7a;
+            border-right: 2px solid #f6f6f6;
+            border-bottom: 2px solid #f6f6f6;
+            margin-bottom: 20px;
+        }
+
+        table #hud-row table {
+            width: 100%;
+        }
+
+        table #hud-row table th {
+            position: relative;
+        }
+
+        table #hud-row table div {
+            position: absolute;
+            background: #000000;
+            color: #ff0100;
+            padding: 5px;
+            width: 50%;
+            top: 0;
+        }
+
+        table #hud-row table th#timer div {
+            right: 0;
+        }
+
+        table #hud-row table th#counter div {
+            left: 0;
+        }
+
+        table #hud #start {
+            position: relative;
+        }
+
+        table #hud #start button {
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+            border-top: 2px solid #f6f6f6;
+            border-left: 2px solid #f6f6f6;
+            border-right: 2px solid #7a7a7a;
+            border-bottom: 2px solid #7a7a7a;
+            width: 28px;
+            height: 28px;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        table #hud #start button:after {
+            content: '🙂';
+            cursor: pointer;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: inline-block;
+            text-align: center;
+            left: 8%;
+            top: 13%;
+            line-height: 1em;
+            font-size: 1.8em;
+        }
+
+        table #hud #start.win button:after {
+            content: '😎';
+        }
+
+        table #hud #start.lose button:after {
+            content: '😵';
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <h1>TableSweeper</h1>
+        <div id="wrap" class="loading">
+            <form id="new-game" method="GET">
+                <table id="game-menu">
+                    <thead>
+                        <tr>
+                            <th class="menu-voice">
+                                <label for="open-popup">
+                                    Game
+                                </label>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <input type="checkbox" id="open-popup" name="open-popup" value="0"/>
+                                <table id="popup">
+                                    <thead>
+                                        <tr>
+                                            <th class="header" colspan="4">
+                                                Game
+                                                <label class="open-popup-cancel" for="open-popup">✖</label>
+                                            </th>
+                                        </tr>
+                                        <tr class="col-names">
+                                            <th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+                                            <th>Height</th>
+                                            <th>Width</th>
+                                            <th>Mines</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <label for="level-1">
+                                                    <input type="radio" id="level-1" name="level" value="beginner"/>
+                                                    Beginner
+                                                </label>
+                                            </td>
+                                            <td>9</td>
+                                            <td>9</td>
+                                            <td>10</td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <label for="level-2">
+                                                    <input type="radio" id="level-2" name="level" value="intermediate"/>
+                                                    Intermediate
+                                                </label>
+                                            </td>
+                                            <td>16</td>
+                                            <td>16</td>
+                                            <td>40</td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <label for="level-3">
+                                                    <input type="radio" id="level-3" name="level" value="expert"/>
+                                                    Expert
+                                                </label>
+                                            </td>
+                                            <td>16</td>
+                                            <td>30</td>
+                                            <td>99</td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <label for="level-4">
+                                                    <input type="radio" id="level-4" name="level" value="custom"/>
+                                                    Custom
+                                                </label>
+                                            </td>
+                                            <td>
+                                                <input type="number" step="1" id="h" name="h" value=""/>
+                                            </td>
+                                            <td>
+                                                <input type="number" step="1" id="w" name="w" value=""/>
+                                            </td>
+                                            <td>
+                                                <input type="number" step="1" id="m" name="m" value=""/>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <button type="submit">New Game</button>
+                                            </td>
+                                            <td colspan="3">
+                                                <label for="q">
+                                                    <input type="checkbox" id="q" name="q" value="1"/>
+                                                    Marks (?)
+                                                </label>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </form>
+            <table>
+                <thead id="hud">
+                    <tr>
+                        <th colspan="" id="hud-row">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th width="40%" id="counter">
+                                            <div></div>
+                                        </th>
+                                        <th width="20%" id="start">
+                                            <button>&nbsp;</button>
+                                        </th>
+                                        <th width="40%" id="timer">
+                                            <div></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th colspan="" id="hud-span">&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody id="board"></tbody>
+            </table>
+        </div>
+    </div>
+    <script type="text/javascript">
+        (function() {
+            function rand(min, max) {
+                return Math.floor(Math.random() * max) + min;
+            }
+
+            function detectButtonClicked(e) {
+                var rightclick;
+                if (!e) {
+                    return null;
+                }
+                if (e.which) {
+                    rightclick = (e.which == 3);
+                } else if (e.button) {
+                    rightclick = (e.button == 2);
+                }
+                return rightclick ? 'right' : 'left';
+            }
+
+            function shuffle(a) {
+                var j, x, i;
+                for (i = a.length - 1; i > 0; i--) {
+                    j = Math.floor(Math.random() * (i + 1));
+                    x = a[i];
+                    a[i] = a[j];
+                    a[j] = x;
+                }
+                return a;
+            }
+
+            function pluck(a, key) {
+                let values = [];
+                for (let i in a) {
+                    values.push(a[i][key]);
+                }
+                return values;
+            }
+
+            function Game() {
+                let gameContainer = jQuery('#game-container');
+                let notice = gameContainer.find('#notice');
+                let hud = gameContainer.find('#hud');
+                let boardElement = gameContainer.find('#board');
+                let counterHudCol = hud.find('#counter');
+                let timerHudCol = hud.find('#timer');
+                let startHudCol = hud.find('#start');
+                let counterHud = counterHudCol.children('div');
+                let timerHud = timerHudCol.children('div');
+                let startHud = startHudCol.children('button');
+                let marksCheckbox = gameContainer.find('#q');
+                let newGameForm = jQuery('#new-game');
+                let wrap = jQuery('#wrap');
+
+                this.board = {};
+                this.board.cells = {};
+                this.board.meta = {};
+                this.board.hud = {};
+
+                this.initBoard = function() {
+                    let qp = new URLSearchParams(
+                        window.location.search.replace('?', '')
+                    );
+                    this.board.meta.level = qp.has('level')
+                        ? qp.get('level')
+                        : 'custom';
+                    this.board.meta.w = qp.has('w')
+                        ? Math.max(qp.get('w') | 0 , 8)
+                        : 16;
+                    this.board.meta.h = qp.has('h')
+                        ? Math.max(qp.get('h') | 0 , 1)
+                        : 16;
+                    this.board.meta.m = qp.has('m')
+                        ? Math.max(qp.get('m') | 0 , 1)
+                        : 40;
+                    this.board.meta.q = qp.has('q')
+                        ? !!(qp.get('q') | 0)
+                        : false;
+                    switch (this.board.meta.level) {
+                        case 'beginner':
+                            this.board.meta.w = 9;
+                            this.board.meta.h = 9;
+                            this.board.meta.m = 10;
+                            break;
+                        case 'intermediate':
+                            this.board.meta.w = 16;
+                            this.board.meta.h = 16;
+                            this.board.meta.m = 40;
+                            break;
+                        case 'expert':
+                            this.board.meta.w = 30;
+                            this.board.meta.h = 16;
+                            this.board.meta.m = 99;
+                            break;
+                    }
+
+                    for (let y = 0; y < this.board.meta.h; ++y) {
+                        let tr = jQuery('<tr/>').data('y', y);
+                        for (let x = 0; x < this.board.meta.w; ++x) {
+                            let td = jQuery('<td/>')
+                                .data('y', y)
+                                .data('x', x)
+                                .attr('id', x + '-' + y)
+                                .addClass('cell');
+                            tr.append(td);
+                        }
+                        boardElement.append(tr);
+                    }
+
+                    hud.find('#hud-row').attr('colspan', this.board.meta.w);
+                    hud.find('#hud-span').attr('colspan', this.board.meta.w);
+
+                    wrap.removeClass('loading');
+                };
+
+                this.initBoard();
+
+                const {
+                    level,
+                    h,
+                    w,
+                    m,
+                    q
+                } = this.board.meta;
+
+                this.board.hud.playing = false;
+                this.board.hud.counter = m;
+                this.board.hud.timer = 0;
+
+                let getArounds = function(x, y) {
+                    let arounds = [{
+                        x: x - 1,
+                        y: y - 1
+                    }, {
+                        x: x - 1,
+                        y: y
+                    }, {
+                        x: x - 1,
+                        y: y + 1
+                    }, {
+                        x: x,
+                        y: y - 1
+                    }, {
+                        x: x,
+                        y: y + 1
+                    }, {
+                        x: x + 1,
+                        y: y - 1
+                    }, {
+                        x: x + 1,
+                        y: y
+                    }, {
+                        x: x + 1,
+                        y: y + 1
+                    }].filter(function(target) {
+                        if (target.x < 0 ||
+                            target.x >= this.board.meta.w ||
+                            target.y < 0 ||
+                            target.y >= this.board.meta.h) {
+                            return false;
+                        }
+                        return true;
+                    });
+                    let res = [];
+                    for (let i in arounds) {
+                        let target = arounds[i];
+                        let cellName = target.x + '-' + target.y;
+                        res.push(this.board.cells[cellName]);
+                    }
+                    return res;
+                };
+
+                let showCell = function(cell) {
+                    cell.shown = 1;
+                    cell.cell.addClass('shown');
+                    cell.cell.attr('value', cell.value);
+                };
+
+                this.incNearValues = function(x, y) {
+                    let arounds = getArounds(x, y);
+                    for (let i in arounds) {
+                        if (arounds[i].value != -1) {
+                            arounds[i].value += 1;
+                        }
+                    }
+                };
+
+                let floodFill = function(targets) {
+                    do {
+                        let newTargets = [];
+                        for (let i = (targets.length - 1); i >= 0; --i) {
+                            let target = this.board.cells[targets[i]];
+                            if (target.shown) {
+                                continue;
+                            }
+                            if (target.value < 0) {
+                                continue;
+                            }
+                            showCell(target);
+                            if (target.value == 0) {
+                                newTargets = newTargets.concat(
+                                    pluck(
+                                        getArounds(target.x, target.y),
+                                        'id'
+                                    )
+                                );
+                            }
+                        }
+                        targets = newTargets;
+                    } while (targets.length > 0);
+                };
+
+                let win = function() {
+                    for (let i in this.board.cells) {
+                        if (!this.board.cells[i].shown) {
+                            this.board.cells[i].cell.addClass('status-1');
+                        }
+                    }
+                    startHudCol.addClass('win');
+                    this.board.hud.playing = false;
+                };
+
+                let gameOver = function(cell) {
+                    cell.status = 3;
+                    cell.cell.addClass('status-3');
+                    for (let cellName in this.board.cells) {
+                        let allCell = this.board.cells[cellName];
+                        showCell(allCell);
+                    }
+                    cell.cell.attr('value', '');
+                    startHudCol.addClass('lose');
+                    this.board.hud.playing = false;
+                };
+
+                let updateCounter = function() {
+                    let counter = this.board.meta.m;
+                    for (let i in this.board.cells) {
+                        if (this.board.cells[i].status == 1) {
+                            counter--;
+                        }
+                    }
+                    this.board.hud.counter = counter;
+                    counterHud.text(
+                        (this.board.hud.counter < 0)
+                            ? (this.board.hud.counter + '').padStart(3, '-0')
+                            : (this.board.hud.counter + '').padStart(3, '0')
+                    );
+                };
+
+                let checkVictory = function() {
+                    let countNotShown = 0;
+                    for (let i in this.board.cells) {
+                        if (!this.board.cells[i].shown) {
+                            countNotShown++;
+                        }
+                    }
+                    if (countNotShown == this.board.meta.m) {
+                        win();
+                    }
+                };
+
+                let targetedBoardCell = function(cell) {
+                    return this.board.cells[jQuery(cell).attr('id')];
+                };
+
+                let clickCell = function(cell) {
+                    if (!this.board.hud.playing) {
+                        return;
+                    }
+                    let target = targetedBoardCell(cell);
+                    if (target.shown) {
+                        return;
+                    }
+                    if (target.status == 1) {
+                        return;
+                    }
+                    if (target.value == 0) {
+                        floodFill([target.id]);
+                    } else if (target.value == -1) {
+                        gameOver(target);
+                    } else {
+                        showCell(target);
+                    }
+                    checkVictory();
+                };
+
+                let rightClickCell = function(cell) {
+                    if (!this.board.hud.playing) {
+                        return;
+                    }
+                    let target = targetedBoardCell(cell);
+                    if (target.shown) {
+                        return;
+                    }
+                    if (this.board.meta.q) {
+                        target.status = (target.status + 1) % 3;
+                    } else {
+                        target.status = (target.status + 1) % 2;
+                    }
+                    target.cell
+                        .removeClass('status-1').removeClass('status-2')
+                        .addClass('status-' + target.status);
+                    updateCounter();
+                };
+
+                for (let y = 0; y < this.board.meta.h; ++y) {
+                    for (let x = 0; x < this.board.meta.w; ++x) {
+                        let cellName = x + '-' + y;
+                        this.board.cells[cellName] = {
+                            id: cellName,
+                            x: x,
+                            y: y,
+                            cell: boardElement.find('#' + cellName),
+                            value: 0,
+                            status: 0,
+                            shown: false
+                        };
+                    }
+                }
+
+                let knut = [];
+                for (let i in this.board.cells) {
+                    knut.push(i);
+                }
+                shuffle(knut);
+
+                let bombs = [];
+                for (let i = 0; i < m; ++i) {
+                    let cellName = knut[i];
+                    let pieces = cellName.split('-');
+                    let randX = pieces[0] | 0;
+                    let randY = pieces[1] | 0;
+                    this.board.cells[cellName].value = -1;
+                    bombs.push(this.board.cells[cellName]);
+                }
+
+                for (let j in bombs) {
+                    this.incNearValues(bombs[j].x, bombs[j].y);
+                }
+
+                delete knut;
+                delete bombs;
+
+                for (let cellName in this.board.cells) {
+                    let cell = this.board.cells[cellName];
+                    cell.cell.on('click', function(e) {
+                        e.preventDefault();
+                        if (cell.shown) {
+                            return;
+                        }
+                        let buttonClicked = detectButtonClicked(e);
+                        if (buttonClicked === 'left') {
+                            clickCell(cell.cell);
+                        } else if (buttonClicked === 'right') {
+                            rightClickCell(cell.cell);
+                        }
+                    });
+                    cell.cell.on('contextmenu', function(e) {
+                        e.preventDefault();
+                        if (cell.shown) {
+                            return;
+                        }
+                        rightClickCell(cell.cell);
+                    });
+                }
+
+                this.board.hud.playing = true;
+
+                let timerInterval = setInterval(
+                    function() {
+                        if (!this.board.hud.playing) {
+                            clearInterval(timerInterval);
+                            return;
+                        }
+                        this.board.hud.timer++;
+                        timerHud.text((this.board.hud.timer + '').padStart(3, '0'));
+                    },
+                    1000
+                );
+
+                let preSet = function() {
+                    newGameForm.find('input[name="level"][value="' + level + '"]').prop('checked', true);
+                    newGameForm.find('input#w').val(w);
+                    newGameForm.find('input#h').val(h);
+                    newGameForm.find('input#m').val(m);
+                    if (q) {
+                        newGameForm.find('input#q').prop('checked', true);
+                    }
+                };
+
+                preSet();
+
+                let restart = function() {
+                    let params = [
+                        'level=' + this.board.meta.level,
+                        'h=' + this.board.meta.h,
+                        'w=' + this.board.meta.w,
+                        'm=' + this.board.meta.m,
+                        'q=' + (this.board.meta.q ? 1 : 0),
+                    ];
+                    window.location.href = '?' + params.join('&');
+                };
+
+                let changeMarksSettings = function(value) {
+                    this.board.meta.q = value;
+                };
+
+                startHud.on('click', function(e) {
+                    e.preventDefault();
+                    restart();
+                });
+
+                marksCheckbox.on('change', function(e) {
+                    e.preventDefault();
+                    changeMarksSettings(!!jQuery(this).prop('checked'));
+                });
+
+                timerHud.text('000');
+                updateCounter();
+
+                return this;
+            };
+
+            Game();
+        }());
+    </script>
+</body>
+
+</html>
